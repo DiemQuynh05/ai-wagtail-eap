@@ -197,6 +197,10 @@ WAGTAILDOCS_MAX_UPLOAD_SIZE = 10 * 1024 * 1024  # 10MB
 # Gemini AI (phone_erp/ai_services.py)
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "")
 GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-3.8-flash")
-GEMINI_TIMEOUT_MS = int(os.getenv("GEMINI_TIMEOUT_MS", "60000"))
+# Model dự phòng khi model chính hết quota/quá tải (mỗi model có quota miễn phí riêng)
+GEMINI_FALLBACK_MODELS = [
+    m.strip() for m in os.getenv("GEMINI_FALLBACK_MODELS", "gemini-3.5-flash-lite,gemini-3.1-flash-lite,gemini-3.5-flash").split(",") if m.strip()
+]
+GEMINI_TIMEOUT_MS = int(os.getenv("GEMINI_TIMEOUT_MS", "30000"))
 # Thời gian lưu cache kết quả AI (giây) khi dữ liệu không đổi, giúp tiết kiệm quota
 AI_CACHE_SECONDS = int(os.getenv("AI_CACHE_SECONDS", "600"))

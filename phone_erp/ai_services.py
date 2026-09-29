@@ -96,8 +96,33 @@ def gemini_model():
     return getattr(settings, "GEMINI_MODEL", "gemini-3.8-flash")
 
 
+def gemini_models():
+    """Model chính + các model dự phòng (mỗi model có quota riêng)."""
+    models = [gemini_model(), *getattr(settings, "GEMINI_FALLBACK_MODELS", [])]
+    return list(dict.fromkeys(m for m in models if m))
+
+
+# Lỗi mà đổi sang model khác có thể khắc phục: hết quota, model không tồn tại, model quá tải/quá hạn
+SWITCH_MODEL_CODES = {429, 404, 500, 503, 504}
+
+
+def _friendly_error(code, status, message, model):
+    if code == 429:
+        return f"{model}: hết lượt gọi miễn phí (quota)"
+    if code == 404:
+        return f"{model}: model không khả dụng"
+    if code in (500, 503, 504):
+        return f"{model}: Gemini đang quá tải hoặc phản hồi quá lâu"
+    if code in (400, 401, 403) and "API key" in (message or ""):
+        return "API key không hợp lệ hoặc không có quyền (kiểm tra GEMINI_API_KEY trong .env)"
+    return f"{model}: lỗi {code} {status}"
+
+
 def _call_gemini(prompt, schema=None):
-    """Gọi Gemini. Có schema => trả về dict theo schema, không có => trả về văn bản."""
+    """
+    Gọi Gemini, tự chuyển sang model dự phòng khi hết quota/quá tải.
+    Trả về (kết quả, model đã dùng). Có schema => kết quả là dict, không có => văn bản.
+    """
     if not is_ai_configured():
         raise AIUnavailable("Chưa cấu hình GEMINI_API_KEY trong file .env")
     try:
@@ -115,35 +140,45 @@ def _call_gemini(prompt, schema=None):
         config.update(response_mime_type="application/json", response_schema=schema)
     config = types.GenerateContentConfig(**config)
 
-    try:
-        client = genai.Client(
-            api_key=settings.GEMINI_API_KEY,
-            http_options=types.HttpOptions(
-                timeout=getattr(settings, "GEMINI_TIMEOUT_MS", 60000),
-                # Tự thử lại khi Gemini quá tải (503) hoặc vượt giới hạn tạm thời (429)
-                retry_options=types.HttpRetryOptions(
-                    attempts=3, initial_delay=2, max_delay=10, http_status_codes=[429, 500, 503]
-                ),
+    client = genai.Client(
+        api_key=settings.GEMINI_API_KEY,
+        http_options=types.HttpOptions(
+            timeout=getattr(settings, "GEMINI_TIMEOUT_MS", 30000),
+            # Chỉ thử lại lỗi server tạm thời; không thử lại 429 vì chỉ tốn thêm quota
+            retry_options=types.HttpRetryOptions(
+                attempts=2, initial_delay=2, max_delay=5, http_status_codes=[500, 503]
             ),
-        )
-        response = client.models.generate_content(model=gemini_model(), contents=prompt, config=config)
-    except errors.APIError as exc:
-        logger.warning("Gemini API error %s: %s", exc.code, exc.message)
-        raise AIUnavailable(f"Lỗi khi gọi Gemini ({exc.code} {exc.status}): {exc.message}") from exc
-    except Exception as exc:
-        logger.warning("Gemini request failed: %s", exc)
-        raise AIUnavailable(f"Không kết nối được Gemini: {exc}") from exc
+        ),
+    )
 
-    if not schema:
-        if not response.text:
-            raise AIUnavailable("Gemini không trả về nội dung")
-        return response.text.strip()
-    if isinstance(response.parsed, BaseModel):
-        return response.parsed.model_dump()
-    try:
-        return schema.model_validate_json(response.text).model_dump()
-    except Exception as exc:
-        raise AIUnavailable("Gemini trả về JSON không hợp lệ") from exc
+    failures = []
+    for model in gemini_models():
+        try:
+            response = client.models.generate_content(model=model, contents=prompt, config=config)
+        except errors.APIError as exc:
+            logger.warning("Gemini API error (%s) %s: %s", model, exc.code, exc.message)
+            failures.append(_friendly_error(exc.code, exc.status, exc.message, model))
+            if exc.code in SWITCH_MODEL_CODES:
+                continue
+            break
+        except Exception as exc:
+            # Hết thời gian chờ / lỗi mạng: thử model tiếp theo
+            logger.warning("Gemini request failed (%s): %s", model, exc)
+            failures.append(f"{model}: không kết nối được hoặc quá thời gian chờ")
+            continue
+
+        if not schema:
+            if not response.text:
+                raise AIUnavailable("Gemini không trả về nội dung")
+            return response.text.strip(), model
+        if isinstance(response.parsed, BaseModel):
+            return response.parsed.model_dump(), model
+        try:
+            return schema.model_validate_json(response.text).model_dump(), model
+        except Exception as exc:
+            raise AIUnavailable("Gemini trả về JSON không hợp lệ") from exc
+
+    raise AIUnavailable("Gemini AI tạm thời không dùng được - " + "; ".join(failures) + ". Vui lòng thử lại sau.")
 
 
 def _cache_key(feature, payload):
@@ -167,11 +202,11 @@ def _run(feature, metrics, prompt, schema, fallback, refresh=False):
         return {**result, **cached, "cached": True}
 
     try:
-        analysis = _call_gemini(prompt, schema)
+        analysis, result["model"] = _call_gemini(prompt, schema)
     except AIUnavailable as exc:
         return {**result, "source": "fallback", "model": None, "warning": str(exc), "analysis": fallback(metrics)}
 
-    stored = {"source": "gemini", "generated_at": result["generated_at"], "analysis": analysis}
+    stored = {"source": "gemini", "model": result["model"], "generated_at": result["generated_at"], "analysis": analysis}
     cache.set(key, stored, getattr(settings, "AI_CACHE_SECONDS", 600))
     return {**result, **stored}
 

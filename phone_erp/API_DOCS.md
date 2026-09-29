@@ -13,6 +13,8 @@ python manage.py runserver
 
 Chưa có `GEMINI_API_KEY` hoặc Gemini bị lỗi/hết quota thì API **vẫn trả về 200**, kèm `"source": "fallback"` (phân tích theo luật) và lý do ở `"warning"`. Frontend nên hiện `warning` nếu khác `null`.
 
+Mỗi model Gemini có quota miễn phí riêng. Khi `GEMINI_MODEL` hết quota, quá tải hoặc quá thời gian chờ, hệ thống tự thử lần lượt các model trong `GEMINI_FALLBACK_MODELS`. Trường `"model"` trong phản hồi cho biết model đã dùng. **Không nên gửi `refresh=1` mỗi lần bấm nút**, vì mỗi lần như vậy tốn một lượt quota. Dữ liệu thay đổi thì AI vẫn tự phân tích lại.
+
 Test AI bằng dòng lệnh, không cần Frontend:
 
 ```bash

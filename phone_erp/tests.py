@@ -73,7 +73,7 @@ class GeminiTests(PhoneErpTestBase):
 
     @mock.patch("phone_erp.ai_services._call_gemini")
     def test_result_is_cached(self, call):
-        call.return_value = self.FAKE_SALES
+        call.return_value = (self.FAKE_SALES, "gemini-test")
         first = ai_services.analyze_sales_report()
         second = ai_services.analyze_sales_report()
         self.assertEqual(first["source"], "gemini")
@@ -89,6 +89,32 @@ class GeminiTests(PhoneErpTestBase):
         result = ai_services.analyze_sales_report()
         self.assertEqual(result["source"], "fallback")
         self.assertEqual(result["warning"], "quota exceeded")
+
+    @staticmethod
+    def _quota_error():
+        from google.genai import errors
+        return errors.APIError(429, {"error": {"code": 429, "message": "quota", "status": "RESOURCE_EXHAUSTED"}})
+
+    @override_settings(GEMINI_MODEL="model-a", GEMINI_FALLBACK_MODELS=["model-b"])
+    @mock.patch("google.genai.Client")
+    def test_switches_model_when_quota_exceeded(self, client_cls):
+        response = mock.Mock(parsed=None, text=json.dumps(self.FAKE_SALES))
+        generate = client_cls.return_value.models.generate_content
+        generate.side_effect = [self._quota_error(), response]
+
+        result = ai_services.analyze_sales_report()
+        self.assertEqual(result["source"], "gemini")
+        self.assertEqual(result["model"], "model-b")
+        self.assertEqual([c.kwargs["model"] for c in generate.call_args_list], ["model-a", "model-b"])
+
+    @override_settings(GEMINI_MODEL="model-a", GEMINI_FALLBACK_MODELS=["model-b"])
+    @mock.patch("google.genai.Client")
+    def test_all_models_exhausted(self, client_cls):
+        client_cls.return_value.models.generate_content.side_effect = [self._quota_error(), self._quota_error()]
+        result = ai_services.analyze_sales_report()
+        self.assertEqual(result["source"], "fallback")
+        self.assertIn("model-a: hết lượt gọi miễn phí", result["warning"])
+        self.assertIn("model-b: hết lượt gọi miễn phí", result["warning"])
 
 
 @override_settings(GEMINI_API_KEY="")
@@ -139,3 +165,17 @@ class ApiTests(PhoneErpTestBase):
         self.assertIn("tồn kho", response.json()["error"])
         self.samsung.refresh_from_db()
         self.assertEqual(self.samsung.stock_quantity, 3)
+
+
+class SeedDemoDataTests(TestCase):
+    def test_seed_creates_data_and_refuses_twice(self):
+        from django.core.management import CommandError, call_command
+        call_command("seed_demo_data", verbosity=0)
+        self.assertEqual(PhoneProduct.objects.count(), 10)
+        self.assertEqual(Customer.objects.count(), 5)
+        self.assertEqual(Order.objects.count(), 21)
+        self.assertEqual(PhoneProduct.objects.get(sku="S24U-256").stock_quantity, 0)
+        with self.assertRaises(CommandError):
+            call_command("seed_demo_data", verbosity=0)
+        call_command("seed_demo_data", reset=True, verbosity=0)
+        self.assertEqual(Order.objects.count(), 21)
