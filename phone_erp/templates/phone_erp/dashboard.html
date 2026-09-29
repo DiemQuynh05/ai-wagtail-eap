@@ -445,12 +445,64 @@ document.addEventListener("DOMContentLoaded", function() {
         spinner.style.display = isLoading ? 'inline-block' : 'none';
     }
 
-    function parseMarkdown(md) {
-        return md.replace(/\*\*(.*?)\*\*/g, '<strong class="text-dark">$1</strong>')
-                 .replace(/\*(.*?)\*/g, '<em>$1</em>')
-                 .replace(/# (.*?)\n/g, '<h5 class="text-primary mt-3 mb-2">$1</h5>')
-                 .replace(/## (.*?)\n/g, '<h6 class="text-primary mt-3 mb-2">$1</h6>')
-                 .replace(/\n/g, '<br>');
+    function formatSales(analysis) {
+        if (!analysis || !analysis.headline) return "Không có dữ liệu phản hồi.";
+        
+        let html = `<h5 class="text-primary mb-3"><i class="bi bi-bar-chart-fill me-2"></i>${analysis.headline}</h5>`;
+        html += `<p class="text-dark">${analysis.summary}</p>`;
+        
+        if (analysis.insights && analysis.insights.length > 0) {
+            html += `<h6 class="text-primary mt-3 mb-2"><i class="bi bi-lightbulb-fill text-warning me-2"></i>Nhận định đáng chú ý</h6><ul>`;
+            analysis.insights.forEach(i => html += `<li>${i}</li>`);
+            html += `</ul>`;
+        }
+        
+        if (analysis.risks && analysis.risks.length > 0) {
+            html += `<h6 class="text-danger mt-3 mb-2"><i class="bi bi-exclamation-triangle-fill me-2"></i>Rủi ro kinh doanh</h6><ul>`;
+            analysis.risks.forEach(r => html += `<li>${r}</li>`);
+            html += `</ul>`;
+        }
+        
+        if (analysis.recommendations && analysis.recommendations.length > 0) {
+            html += `<h6 class="text-success mt-3 mb-2"><i class="bi bi-check-circle-fill me-2"></i>Hành động đề xuất</h6><ul>`;
+            analysis.recommendations.forEach(r => html += `<li>${r}</li>`);
+            html += `</ul>`;
+        }
+        return html;
+    }
+
+    function formatInventory(analysis) {
+        if (!analysis || !analysis.headline) return "Không có dữ liệu phản hồi.";
+        
+        let html = `<h5 class="text-success mb-3"><i class="bi bi-box-seam-fill me-2"></i>${analysis.headline}</h5>`;
+        html += `<p class="text-dark">${analysis.summary}</p>`;
+        
+        if (analysis.budget_comment) {
+            html += `<p class="fw-bold text-dark"><i class="bi bi-wallet2 text-secondary me-2"></i>${analysis.budget_comment}</p>`;
+        }
+
+        if (analysis.urgent_restock && analysis.urgent_restock.length > 0) {
+            html += `<h6 class="text-danger mt-3 mb-2"><i class="bi bi-cart-plus-fill me-2"></i>Cần nhập hàng gấp</h6><ul>`;
+            analysis.urgent_restock.forEach(item => {
+                html += `<li><strong>${item.name}</strong> (Tồn: ${item.current_stock}) - Đề xuất nhập: ${item.suggested_qty} <em>(${item.reason})</em></li>`;
+            });
+            html += `</ul>`;
+        }
+        
+        if (analysis.overstock && analysis.overstock.length > 0) {
+            html += `<h6 class="text-warning mt-3 mb-2 text-dark"><i class="bi bi-hourglass-bottom me-2"></i>Tồn kho lâu / Ứ đọng</h6><ul>`;
+            analysis.overstock.forEach(item => {
+                html += `<li><strong>${item.name}</strong> (Tồn: ${item.current_stock}) - ${item.action}</li>`;
+            });
+            html += `</ul>`;
+        }
+
+        if (analysis.recommendations && analysis.recommendations.length > 0) {
+            html += `<h6 class="text-primary mt-3 mb-2"><i class="bi bi-check-circle-fill me-2"></i>Hành động đề xuất</h6><ul>`;
+            analysis.recommendations.forEach(r => html += `<li>${r}</li>`);
+            html += `</ul>`;
+        }
+        return html;
     }
 
     btnSalesAI.addEventListener('click', () => {
@@ -463,9 +515,10 @@ document.addEventListener("DOMContentLoaded", function() {
             .then(data => {
                 if(data.error) {
                     aiResultDiv.innerHTML = `<span class="text-danger fw-bold"><i class="bi bi-x-circle-fill me-2"></i>Lỗi AI: ${data.error}</span>`;
+                } else if(data.analysis) {
+                    aiResultDiv.innerHTML = formatSales(data.analysis);
                 } else {
-                    let content = data.report || "Không có dữ liệu phản hồi.";
-                    aiResultDiv.innerHTML = `<h5 class="text-primary mb-3"><i class="bi bi-bar-chart-fill me-2"></i>Kết quả Phân tích Thị trường & Doanh thu</h5>` + parseMarkdown(content);
+                    aiResultDiv.innerHTML = `<span class="text-muted">Không có dữ liệu phản hồi.</span>`;
                 }
             })
             .catch(err => {
@@ -486,9 +539,10 @@ document.addEventListener("DOMContentLoaded", function() {
             .then(data => {
                 if(data.error) {
                     aiResultDiv.innerHTML = `<span class="text-danger fw-bold"><i class="bi bi-x-circle-fill me-2"></i>Lỗi AI: ${data.error}</span>`;
+                } else if(data.analysis) {
+                    aiResultDiv.innerHTML = formatInventory(data.analysis);
                 } else {
-                    let content = data.report || "Không có dữ liệu phản hồi.";
-                    aiResultDiv.innerHTML = `<h5 class="text-success mb-3"><i class="bi bi-box-seam-fill me-2"></i>Kết quả Dự báo & Cảnh báo Tồn kho</h5>` + parseMarkdown(content);
+                    aiResultDiv.innerHTML = `<span class="text-muted">Không có dữ liệu phản hồi.</span>`;
                 }
             })
             .catch(err => {
