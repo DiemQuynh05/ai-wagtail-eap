@@ -1,0 +1,503 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Dashboard Quản lý Kho Điện Thoại{% endblock %}
+
+{% block extra_css %}
+<!-- Google Fonts: Inter -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<!-- Bootstrap 5 -->
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+<!-- Bootstrap Icons -->
+<link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css" rel="stylesheet">
+
+<style>
+    body {
+        background-color: #f3f6fa;
+        font-family: 'Inter', sans-serif;
+    }
+    
+    .dashboard-header {
+        font-weight: 700;
+        color: #1e293b;
+        letter-spacing: -0.5px;
+    }
+
+    /* Cards */
+    .card-custom {
+        border: none;
+        border-radius: 16px;
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03);
+        transition: transform 0.2s ease, box-shadow 0.2s ease;
+    }
+    .card-custom:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.08), 0 4px 6px -2px rgba(0, 0, 0, 0.04);
+    }
+    
+    /* Stat Cards Gradients */
+    .bg-gradient-revenue {
+        background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+        color: white;
+    }
+    .bg-gradient-sold {
+        background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+        color: white;
+    }
+    .bg-gradient-warning-stock {
+        background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+        color: white;
+    }
+    
+    .stat-icon {
+        font-size: 2.5rem;
+        opacity: 0.8;
+    }
+    .stat-title {
+        font-size: 0.95rem;
+        font-weight: 500;
+        opacity: 0.9;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+    .stat-value {
+        font-size: 1.8rem;
+        font-weight: 700;
+        margin-top: 5px;
+    }
+
+    /* AI Widget */
+    .ai-widget {
+        background: linear-gradient(to right, #ffffff, #f8fafc);
+        border-left: 5px solid #8b5cf6;
+    }
+    .ai-title {
+        color: #6d28d9;
+        font-weight: 700;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+    .btn-ai-1 {
+        background: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%);
+        border: none;
+        font-weight: 500;
+    }
+    .btn-ai-2 {
+        background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%);
+        border: none;
+        font-weight: 500;
+    }
+    .btn-ai-1:hover, .btn-ai-2:hover {
+        opacity: 0.9;
+        transform: translateY(-1px);
+    }
+
+    .ai-result {
+        background-color: #fff;
+        border: 1px solid #e2e8f0;
+        padding: 20px;
+        margin-top: 20px;
+        border-radius: 12px;
+        display: none;
+        white-space: pre-line;
+        color: #334155;
+        font-size: 0.95rem;
+        line-height: 1.6;
+        box-shadow: inset 0 2px 4px 0 rgba(0, 0, 0, 0.02);
+    }
+    
+    /* Table */
+    .table-container {
+        border-radius: 12px;
+        overflow: hidden;
+    }
+    .table > :not(caption) > * > * {
+        padding: 1rem 1.25rem;
+        vertical-align: middle;
+    }
+    .table-hover tbody tr:hover {
+        background-color: #f8fafc;
+    }
+    .table thead th {
+        background-color: #f1f5f9;
+        color: #475569;
+        font-weight: 600;
+        font-size: 0.85rem;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        border-bottom: none;
+    }
+    .brand-icon {
+        width: 24px;
+        height: 24px;
+        object-fit: contain;
+        margin-right: 8px;
+    }
+    
+    /* Form */
+    .form-control, .form-select {
+        border-radius: 8px;
+        padding: 0.6rem 1rem;
+        border-color: #e2e8f0;
+    }
+    .form-control:focus, .form-select:focus {
+        border-color: #3b82f6;
+        box-shadow: 0 0 0 0.25rem rgba(59, 130, 246, 0.25);
+    }
+    .btn-submit {
+        border-radius: 8px;
+        padding: 0.75rem;
+        font-weight: 600;
+        background-color: #0f172a;
+        border: none;
+    }
+    .btn-submit:hover {
+        background-color: #1e293b;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-5 px-4">
+    <div class="d-flex justify-content-between align-items-center mb-5">
+        <h2 class="dashboard-header mb-0">
+            <i class="bi bi-grid-1x2-fill text-primary me-2"></i> Tổng quan Kho Hàng
+        </h2>
+        <div class="text-muted small"><i class="bi bi-clock-history"></i> Cập nhật theo thời gian thực</div>
+    </div>
+
+    <!-- Statistics Cards -->
+    <div class="row g-4 mb-5">
+        <div class="col-md-4">
+            <div class="card card-custom bg-gradient-revenue h-100">
+                <div class="card-body p-4 d-flex justify-content-between align-items-center">
+                    <div>
+                        <div class="stat-title">Doanh thu (30 ngày)</div>
+                        <div class="stat-value" id="statRevenue">Đang tải...</div>
+                    </div>
+                    <i class="bi bi-cash-stack stat-icon"></i>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card card-custom bg-gradient-sold h-100">
+                <div class="card-body p-4 d-flex justify-content-between align-items-center">
+                    <div>
+                        <div class="stat-title">Máy đã bán</div>
+                        <div class="stat-value" id="statUnitsSold">Đang tải...</div>
+                    </div>
+                    <i class="bi bi-bag-check stat-icon"></i>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card card-custom bg-gradient-warning-stock h-100">
+                <div class="card-body p-4 d-flex justify-content-between align-items-center">
+                    <div>
+                        <div class="stat-title">Cảnh báo Tồn kho</div>
+                        <div class="stat-value" id="statLowStock">Đang tải...</div>
+                    </div>
+                    <i class="bi bi-exclamation-triangle stat-icon"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- AI Control Panel -->
+    <div class="card card-custom ai-widget mb-5">
+        <div class="card-body p-4">
+            <h5 class="ai-title mb-4"><i class="bi bi-stars fs-4"></i> Trợ lý AI Phân tích Thông minh</h5>
+            <div class="d-flex flex-wrap gap-3">
+                <button class="btn btn-primary btn-ai-1 text-white px-4 py-2 rounded-pill shadow-sm" id="btnSalesAI">
+                    <i class="bi bi-graph-up-arrow me-2"></i> Phân tích Thị trường & Doanh thu
+                    <span class="spinner-border spinner-border-sm loading-spinner ms-2" id="spinnerSalesAI" role="status"></span>
+                </button>
+                <button class="btn btn-success btn-ai-2 text-white px-4 py-2 rounded-pill shadow-sm" id="btnInventoryAI">
+                    <i class="bi bi-box-seam me-2"></i> Dự báo Nhập hàng Thông minh
+                    <span class="spinner-border spinner-border-sm loading-spinner ms-2" id="spinnerInventoryAI" role="status"></span>
+                </button>
+            </div>
+            <div id="aiResult" class="ai-result">
+                <!-- Nội dung AI sẽ hiển thị ở đây -->
+            </div>
+        </div>
+    </div>
+
+    <div class="row g-4">
+        <!-- Phone Inventory Table -->
+        <div class="col-xl-8">
+            <div class="card card-custom h-100">
+                <div class="card-header bg-white border-0 pt-4 pb-3 px-4 d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0 fw-bold text-dark"><i class="bi bi-phone-fill text-primary me-2"></i> Tồn kho Điện thoại</h5>
+                    <button class="btn btn-sm btn-outline-secondary rounded-pill" onclick="window.location.reload()"><i class="bi bi-arrow-clockwise"></i> Làm mới</button>
+                </div>
+                <div class="card-body p-0">
+                    <div class="table-container table-responsive" style="max-height: 500px; overflow-y: auto;">
+                        <table class="table table-hover mb-0 align-middle">
+                            <thead class="sticky-top">
+                                <tr>
+                                    <th class="ps-4">Thương hiệu</th>
+                                    <th>Tên máy</th>
+                                    <th>Giá bán</th>
+                                    <th>Tồn kho</th>
+                                    <th class="pe-4">Trạng thái</th>
+                                </tr>
+                            </thead>
+                            <tbody id="tableInventory">
+                                <tr><td colspan="5" class="text-center text-muted py-5">
+                                    <div class="spinner-border text-primary mb-2" role="status"></div>
+                                    <br>Đang tải dữ liệu...
+                                </td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Create Order Form -->
+        <div class="col-xl-4">
+            <div class="card card-custom h-100">
+                <div class="card-header bg-white border-0 pt-4 pb-3 px-4">
+                    <h5 class="mb-0 fw-bold text-dark"><i class="bi bi-cart-plus-fill text-success me-2"></i> Tạo Đơn hàng mới</h5>
+                </div>
+                <div class="card-body px-4 pb-4">
+                    <form id="formCreateOrder">
+                        {% csrf_token %}
+                        <div class="mb-3">
+                            <label class="form-label fw-semibold text-secondary small">Khách hàng</label>
+                            <select class="form-select bg-light" id="selectCustomer" required>
+                                <option value="">Chọn khách hàng...</option>
+                            </select>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label fw-semibold text-secondary small">Sản phẩm</label>
+                            <select class="form-select bg-light" id="selectProduct" required>
+                                <option value="">Chọn sản phẩm...</option>
+                            </select>
+                        </div>
+                        <div class="mb-4">
+                            <label class="form-label fw-semibold text-secondary small">Số lượng</label>
+                            <input type="number" class="form-control bg-light" id="inputQuantity" value="1" min="1" required>
+                        </div>
+                        <button type="submit" class="btn btn-submit text-white w-100 shadow-sm">
+                            <i class="bi bi-check2-circle me-1"></i> Xác nhận & Tạo đơn
+                        </button>
+                    </form>
+                    <div id="orderMessage" class="mt-3 p-3 rounded-3 d-none fw-medium text-center"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+document.addEventListener("DOMContentLoaded", function() {
+    
+    // --- 1. Hàm format tiền tệ ---
+    const formatCurrency = (amount) => {
+        return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(amount);
+    };
+
+    // --- 2. Load Stats ---
+    fetch('/api/dashboard/stats/')
+        .then(res => res.json())
+        .then(data => {
+            document.getElementById('statRevenue').textContent = formatCurrency(data.total_revenue || 0);
+            document.getElementById('statUnitsSold').textContent = (data.units_sold || 0) + ' máy';
+            document.getElementById('statLowStock').textContent = (data.low_stock_count || 0) + ' mẫu';
+        });
+
+    // --- 3. Load Inventory ---
+    fetch('/api/products/')
+        .then(res => res.json())
+        .then(data => {
+            const tbody = document.getElementById('tableInventory');
+            const selectProduct = document.getElementById('selectProduct');
+            tbody.innerHTML = '';
+            
+            data.products.forEach(p => {
+                // Đổ vào bảng
+                let badgeClass = 'bg-success-subtle text-success border border-success-subtle';
+                let statusText = 'OK';
+                
+                if(p.status === 'OUT_OF_STOCK') { 
+                    badgeClass = 'bg-danger-subtle text-danger border border-danger-subtle'; 
+                    statusText = 'Hết hàng'; 
+                } else if(p.status === 'LOW_STOCK') { 
+                    badgeClass = 'bg-warning-subtle text-warning-emphasis border border-warning-subtle'; 
+                    statusText = 'Sắp hết'; 
+                } else if(p.status === 'SLOW_MOVING') { 
+                    badgeClass = 'bg-secondary-subtle text-secondary border border-secondary-subtle'; 
+                    statusText = 'Tồn lâu'; 
+                }
+                
+                // Chọn icon tương đối dựa vào brand
+                let brandIconHtml = '';
+                let brandLower = p.brand.toLowerCase();
+                if(brandLower.includes('apple') || brandLower.includes('iphone')) {
+                    brandIconHtml = '<i class="bi bi-apple fs-5 me-2 text-dark"></i>';
+                } else if(brandLower.includes('samsung')) {
+                    brandIconHtml = '<i class="bi bi-android2 fs-5 me-2 text-success"></i>'; // placeholder cho android
+                } else {
+                    brandIconHtml = '<i class="bi bi-phone fs-5 me-2 text-secondary"></i>';
+                }
+
+                tbody.innerHTML += `
+                    <tr>
+                        <td class="ps-4 fw-semibold text-dark d-flex align-items-center">${brandIconHtml} ${p.brand}</td>
+                        <td class="fw-medium text-secondary">${p.name}</td>
+                        <td class="fw-bold">${formatCurrency(p.selling_price)}</td>
+                        <td class="fw-bold text-dark">${p.stock}</td>
+                        <td class="pe-4"><span class="badge rounded-pill ${badgeClass} px-3 py-2">${statusText}</span></td>
+                    </tr>
+                `;
+                
+                // Đổ vào form chọn sản phẩm
+                if(p.stock > 0) {
+                    const option = document.createElement('option');
+                    option.value = p.id;
+                    option.textContent = `[${p.brand}] ${p.name} - Tồn: ${p.stock}`;
+                    selectProduct.appendChild(option);
+                }
+            });
+        });
+
+    // --- 4. Load Customers ---
+    fetch('/api/customers/')
+        .then(res => res.json())
+        .then(data => {
+            const selectCustomer = document.getElementById('selectCustomer');
+            data.customers.forEach(c => {
+                const option = document.createElement('option');
+                option.value = c.id;
+                option.textContent = `${c.full_name} (${c.phone || c.email})`;
+                selectCustomer.appendChild(option);
+            });
+        });
+
+    // --- 5. Form Submit (Tạo đơn hàng) ---
+    document.getElementById('formCreateOrder').addEventListener('submit', function(e) {
+        e.preventDefault();
+        
+        const customer_id = document.getElementById('selectCustomer').value;
+        const product_id = document.getElementById('selectProduct').value;
+        const quantity = document.getElementById('inputQuantity').value;
+        const msgDiv = document.getElementById('orderMessage');
+        const btn = document.querySelector('#formCreateOrder button[type="submit"]');
+        
+        // Loading state
+        const originalBtnHtml = btn.innerHTML;
+        btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2" role="status"></span> Đang xử lý...';
+        btn.disabled = true;
+
+        fetch('/api/orders/', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+            },
+            body: JSON.stringify({
+                customer_id: parseInt(customer_id),
+                product_id: parseInt(product_id),
+                quantity: parseInt(quantity)
+            })
+        })
+        .then(res => res.json())
+        .then(data => {
+            if(data.error) {
+                msgDiv.className = 'mt-3 p-3 rounded-3 text-danger bg-danger-subtle border border-danger-subtle';
+                msgDiv.textContent = 'Lỗi: ' + data.error;
+            } else {
+                msgDiv.className = 'mt-3 p-3 rounded-3 text-success bg-success-subtle border border-success-subtle';
+                msgDiv.innerHTML = '<i class="bi bi-check-circle-fill me-2"></i>Thành công! Đơn hàng đã được tạo.';
+                
+                setTimeout(() => window.location.reload(), 1500);
+            }
+            msgDiv.classList.remove('d-none');
+        })
+        .catch(err => {
+            msgDiv.className = 'mt-3 p-3 rounded-3 text-danger bg-danger-subtle border border-danger-subtle';
+            msgDiv.textContent = 'Đã có lỗi hệ thống xảy ra!';
+            msgDiv.classList.remove('d-none');
+        })
+        .finally(() => {
+            btn.innerHTML = originalBtnHtml;
+            btn.disabled = false;
+        });
+    });
+
+    // --- 6. AI Buttons ---
+    const btnSalesAI = document.getElementById('btnSalesAI');
+    const btnInventoryAI = document.getElementById('btnInventoryAI');
+    const spinnerSalesAI = document.getElementById('spinnerSalesAI');
+    const spinnerInventoryAI = document.getElementById('spinnerInventoryAI');
+    const aiResultDiv = document.getElementById('aiResult');
+
+    function toggleBtnState(btn, spinner, isLoading) {
+        btn.disabled = isLoading;
+        spinner.style.display = isLoading ? 'inline-block' : 'none';
+    }
+
+    function parseMarkdown(md) {
+        return md.replace(/\*\*(.*?)\*\*/g, '<strong class="text-dark">$1</strong>')
+                 .replace(/\*(.*?)\*/g, '<em>$1</em>')
+                 .replace(/# (.*?)\n/g, '<h5 class="text-primary mt-3 mb-2">$1</h5>')
+                 .replace(/## (.*?)\n/g, '<h6 class="text-primary mt-3 mb-2">$1</h6>')
+                 .replace(/\n/g, '<br>');
+    }
+
+    btnSalesAI.addEventListener('click', () => {
+        toggleBtnState(btnSalesAI, spinnerSalesAI, true);
+        aiResultDiv.style.display = 'block';
+        aiResultDiv.innerHTML = '<div class="text-center text-muted py-3"><div class="spinner-border text-primary mb-2" role="status"></div><br>AI đang tổng hợp và phân tích dữ liệu bán hàng...</div>';
+        
+        fetch('/api/ai/sales-report/?days=30&refresh=1')
+            .then(res => res.json())
+            .then(data => {
+                if(data.error) {
+                    aiResultDiv.innerHTML = `<span class="text-danger fw-bold"><i class="bi bi-x-circle-fill me-2"></i>Lỗi AI: ${data.error}</span>`;
+                } else {
+                    let content = data.report || "Không có dữ liệu phản hồi.";
+                    aiResultDiv.innerHTML = `<h5 class="text-primary mb-3"><i class="bi bi-bar-chart-fill me-2"></i>Kết quả Phân tích Thị trường & Doanh thu</h5>` + parseMarkdown(content);
+                }
+            })
+            .catch(err => {
+                aiResultDiv.innerHTML = `<span class="text-danger fw-bold"><i class="bi bi-wifi-off me-2"></i>Lỗi kết nối đến server AI</span>`;
+            })
+            .finally(() => {
+                toggleBtnState(btnSalesAI, spinnerSalesAI, false);
+            });
+    });
+
+    btnInventoryAI.addEventListener('click', () => {
+        toggleBtnState(btnInventoryAI, spinnerInventoryAI, true);
+        aiResultDiv.style.display = 'block';
+        aiResultDiv.innerHTML = '<div class="text-center text-muted py-3"><div class="spinner-border text-success mb-2" role="status"></div><br>AI đang đánh giá tồn kho và dự báo nhập hàng...</div>';
+        
+        fetch('/api/ai/inventory-alert/?days=30&refresh=1')
+            .then(res => res.json())
+            .then(data => {
+                if(data.error) {
+                    aiResultDiv.innerHTML = `<span class="text-danger fw-bold"><i class="bi bi-x-circle-fill me-2"></i>Lỗi AI: ${data.error}</span>`;
+                } else {
+                    let content = data.report || "Không có dữ liệu phản hồi.";
+                    aiResultDiv.innerHTML = `<h5 class="text-success mb-3"><i class="bi bi-box-seam-fill me-2"></i>Kết quả Dự báo & Cảnh báo Tồn kho</h5>` + parseMarkdown(content);
+                }
+            })
+            .catch(err => {
+                aiResultDiv.innerHTML = `<span class="text-danger fw-bold"><i class="bi bi-wifi-off me-2"></i>Lỗi kết nối đến server AI</span>`;
+            })
+            .finally(() => {
+                toggleBtnState(btnInventoryAI, spinnerInventoryAI, false);
+            });
+    });
+});
+</script>
+{% endblock %}
