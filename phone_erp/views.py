@@ -20,6 +20,7 @@ from functools import wraps
 from django.core.exceptions import ValidationError
 from django.db import transaction
 from django.http import JsonResponse
+from django.shortcuts import render
 from django.views.decorators.http import require_GET, require_http_methods, require_POST
 
 from . import ai_services
@@ -110,6 +111,10 @@ def ai_ask(request):
 
 
 # ---------- Dữ liệu Dashboard ----------
+
+@require_GET
+def dashboard_page(request):
+    return render(request, "phone_erp/dashboard.html")
 
 @require_GET
 @api_view

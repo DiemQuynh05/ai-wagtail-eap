@@ -10,7 +10,7 @@ urlpatterns = [
     path("ai/inventory-alert/", views.ai_inventory_alert, name="ai_inventory_alert"),
     path("ai/ask/", views.ai_ask, name="ai_ask"),
     # Dữ liệu Dashboard
-    path("dashboard/stats/", views.dashboard_stats, name="dashboard_stats"),
+    path("dashboard/", views.dashboard_page, name="dashboard_page"), path("dashboard/stats/", views.dashboard_stats, name="dashboard_stats"),
     path("products/", views.product_list, name="product_list"),
     path("customers/", views.customer_list, name="customer_list"),
     path("orders/", views.orders, name="orders"),
