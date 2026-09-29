@@ -175,7 +175,7 @@
             <div class="card card-custom bg-gradient-revenue h-100">
                 <div class="card-body p-4 d-flex justify-content-between align-items-center">
                     <div>
-                        <div class="stat-title">Doanh thu (30 ngày)</div>
+                        <div class="stat-title">Tổng doanh thu</div>
                         <div class="stat-value" id="statRevenue">Đang tải...</div>
                     </div>
                     <i class="bi bi-cash-stack stat-icon"></i>
@@ -445,12 +445,31 @@ document.addEventListener("DOMContentLoaded", function() {
         spinner.style.display = isLoading ? 'inline-block' : 'none';
     }
 
+    // Khi Gemini lỗi/hết quota, API trả về phân tích theo luật kèm lý do ở data.warning
+    function warningHtml(data) {
+        if (!data.warning) return '';
+        return `<div class="alert alert-warning py-2 small mb-3"><i class="bi bi-exclamation-triangle-fill me-2"></i>`
+            + `<strong>Đang dùng phân tích tự động (không phải AI):</strong> ${data.warning}</div>`;
+    }
+
     function formatSales(analysis) {
         if (!analysis || !analysis.headline) return "Không có dữ liệu phản hồi.";
-        
+
         let html = `<h5 class="text-primary mb-3"><i class="bi bi-bar-chart-fill me-2"></i>${analysis.headline}</h5>`;
         html += `<p class="text-dark">${analysis.summary}</p>`;
-        
+
+        if (analysis.hot_brands && analysis.hot_brands.length > 0) {
+            html += `<h6 class="text-primary mt-3 mb-2"><i class="bi bi-fire text-danger me-2"></i>Thương hiệu bán chạy</h6><ul>`;
+            analysis.hot_brands.forEach(b => html += `<li><strong>${b.brand}</strong> - ${b.revenue_share_pct}% doanh thu: ${b.comment}</li>`);
+            html += `</ul>`;
+        }
+
+        if (analysis.hot_products && analysis.hot_products.length > 0) {
+            html += `<h6 class="text-primary mt-3 mb-2"><i class="bi bi-trophy-fill text-warning me-2"></i>Mẫu máy "hot" nhất</h6><ul>`;
+            analysis.hot_products.forEach(p => html += `<li><strong>${p.name}</strong> (${p.units} máy): ${p.comment}</li>`);
+            html += `</ul>`;
+        }
+
         if (analysis.insights && analysis.insights.length > 0) {
             html += `<h6 class="text-primary mt-3 mb-2"><i class="bi bi-lightbulb-fill text-warning me-2"></i>Nhận định đáng chú ý</h6><ul>`;
             analysis.insights.forEach(i => html += `<li>${i}</li>`);
@@ -492,7 +511,7 @@ document.addEventListener("DOMContentLoaded", function() {
         if (analysis.overstock && analysis.overstock.length > 0) {
             html += `<h6 class="text-warning mt-3 mb-2 text-dark"><i class="bi bi-hourglass-bottom me-2"></i>Tồn kho lâu / Ứ đọng</h6><ul>`;
             analysis.overstock.forEach(item => {
-                html += `<li><strong>${item.name}</strong> (Tồn: ${item.current_stock}) - ${item.action}</li>`;
+                html += `<li><strong>${item.name}</strong> (Tồn: ${item.current_stock}) - ${item.reason}. <em>Gợi ý: ${item.suggestion}</em></li>`;
             });
             html += `</ul>`;
         }
@@ -510,13 +529,13 @@ document.addEventListener("DOMContentLoaded", function() {
         aiResultDiv.style.display = 'block';
         aiResultDiv.innerHTML = '<div class="text-center text-muted py-3"><div class="spinner-border text-primary mb-2" role="status"></div><br>AI đang tổng hợp và phân tích dữ liệu bán hàng...</div>';
         
-        fetch('/api/ai/sales-report/?days=30&refresh=1')
+        fetch('/api/ai/sales-report/?days=30')
             .then(res => res.json())
             .then(data => {
                 if(data.error) {
                     aiResultDiv.innerHTML = `<span class="text-danger fw-bold"><i class="bi bi-x-circle-fill me-2"></i>Lỗi AI: ${data.error}</span>`;
                 } else if(data.analysis) {
-                    aiResultDiv.innerHTML = formatSales(data.analysis);
+                    aiResultDiv.innerHTML = warningHtml(data) + formatSales(data.analysis);
                 } else {
                     aiResultDiv.innerHTML = `<span class="text-muted">Không có dữ liệu phản hồi.</span>`;
                 }
@@ -534,13 +553,13 @@ document.addEventListener("DOMContentLoaded", function() {
         aiResultDiv.style.display = 'block';
         aiResultDiv.innerHTML = '<div class="text-center text-muted py-3"><div class="spinner-border text-success mb-2" role="status"></div><br>AI đang đánh giá tồn kho và dự báo nhập hàng...</div>';
         
-        fetch('/api/ai/inventory-alert/?days=30&refresh=1')
+        fetch('/api/ai/inventory-alert/?days=30')
             .then(res => res.json())
             .then(data => {
                 if(data.error) {
                     aiResultDiv.innerHTML = `<span class="text-danger fw-bold"><i class="bi bi-x-circle-fill me-2"></i>Lỗi AI: ${data.error}</span>`;
                 } else if(data.analysis) {
-                    aiResultDiv.innerHTML = formatInventory(data.analysis);
+                    aiResultDiv.innerHTML = warningHtml(data) + formatInventory(data.analysis);
                 } else {
                     aiResultDiv.innerHTML = `<span class="text-muted">Không có dữ liệu phản hồi.</span>`;
                 }
